@@ -1,85 +1,141 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { ArrowLeft, Phone, ShoppingCart } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { getProducts } from "@/lib/product-service"
+import { toast } from "@/hooks/use-toast"
+
+// This ensures this page is used for the /products/accessories route
+export const dynamic = "force-dynamic"
+export const revalidate = 0 // Disable caching for this page
 
 export default function AccessoriesPage() {
   // State for image errors
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({})
+  const [loading, setLoading] = useState(true)
+  const [accessories, setAccessories] = useState<any[]>([])
+  const [categories, setCategories] = useState<string[]>([])
+  const [activeCategory, setActiveCategory] = useState("All")
 
-  // Sample accessories data - you can replace with your actual data
-  const accessories = [
-    {
-      id: "acc-1",
-      name: "CCTV Cable",
-      description: "High-quality coaxial cable for CCTV installations",
-      price: 999,
-      image: "https://images-cdn.ubuy.co.in/6353e821089582532d12b952-amcrest-2-pack-4k-security-camera-cable.jpg",
-      category: "Cables",
-    },
-    {
-      id: "acc-2",
-      name: "Power Supply Unit",
-      description: "12V DC power supply for CCTV cameras",
-      price: 599,
-      image: "https://www.nccadapter.in/wp-content/uploads/2020/06/camera-power-supply-500x500-1.jpg",
-      category: "Power",
-    },
-    {
-      id: "acc-3",
-      name: "BNC Connectors",
-      description: "Pack of 10 BNC connectors for CCTV cables",
-      price: 299,
-      image:
-        "https://rukminim3.flixcart.com/image/850/1000/xif0q/wire-joint-connector/b/9/c/bnc-connector-with-copper-wire-moulded-for-connecting-for-cctv-original-imagqdy3yyxydzfd.jpeg?q=90&crop=false",
-      category: "Connectors",
-    },
-    {
-      id: "acc-4",
-      name: "HDMI Cable",
-      description: "3-meter HDMI cable for DVR/NVR connection",
-      price: 399,
-      image: "https://m.media-amazon.com/images/I/61KUaE1R97L._SL1500_.jpg",
-      category: "Cables",
-    },
-    {
-      id: "acc-5",
-      name: "Hard Drive",
-      description: "2TB surveillance-grade hard drive for DVR/NVR",
-      price: 4999,
-      image: "https://5.imimg.com/data5/FS/DE/SX/SELLER-21067398/wd-2-tb-hard-disk-blue-500x500.jpeg",
-      category: "Storage",
-    },
-    {
-      id: "acc-6",
-      name: "Camera Mount",
-      description: "Adjustable wall mount for CCTV cameras",
-      price: 249,
-      image: "https://images-cdn.ubuy.co.in/63416f47dd72e4286c4cefb2-compcctv-cctv-security-camera-mount.jpg",
-      category: "Mounts",
-    },
-    {
-      id: "acc-7",
-      name: "Junction Box",
-      description: "Weatherproof junction box for outdoor installations",
-      price: 349,
-      image: "https://m.media-amazon.com/images/I/31O9ZV+GqlL._AC_UF1000,1000_QL80_.jpg",
-      category: "Installation",
-    },
-    {
-      id: "acc-8",
-      name: "Video Balun",
-      description: "Pair of passive video baluns for CCTV transmission",
-      price: 199,
-      image: "https://m.media-amazon.com/images/I/718sJsmfz1L.jpg",
-      category: "Transmission",
-    },
-  ]
+  // Fetch accessories data
+  useEffect(() => {
+    const fetchAccessories = async () => {
+      try {
+        setLoading(true)
 
-  // Group accessories by category
-  const categories = Array.from(new Set(accessories.map((acc) => acc.category)))
+        // Sample accessories data - this would be replaced with API data in production
+        const defaultAccessories = [
+          {
+            id: "acc-1",
+            name: "CCTV Cable",
+            description: "High-quality coaxial cable for CCTV installations",
+            price: 999,
+            image: "https://images-cdn.ubuy.co.in/6353e821089582532d12b952-amcrest-2-pack-4k-security-camera-cable.jpg",
+            category: "Cables",
+          },
+          {
+            id: "acc-2",
+            name: "Power Supply Unit",
+            description: "12V DC power supply for CCTV cameras",
+            price: 599,
+            image: "https://www.nccadapter.in/wp-content/uploads/2020/06/camera-power-supply-500x500-1.jpg",
+            category: "Power",
+          },
+          {
+            id: "acc-3",
+            name: "BNC Connectors",
+            description: "Pack of 10 BNC connectors for CCTV cables",
+            price: 299,
+            image:
+              "https://rukminim3.flixcart.com/image/850/1000/xif0q/wire-joint-connector/b/9/c/bnc-connector-with-copper-wire-moulded-for-connecting-for-cctv-original-imagqdy3yyxydzfd.jpeg?q=90&crop=false",
+            category: "Connectors",
+          },
+          {
+            id: "acc-4",
+            name: "HDMI Cable",
+            description: "3-meter HDMI cable for DVR/NVR connection",
+            price: 399,
+            image: "https://m.media-amazon.com/images/I/61KUaE1R97L._SL1500_.jpg",
+            category: "Cables",
+          },
+          {
+            id: "acc-5",
+            name: "Hard Drive",
+            description: "2TB surveillance-grade hard drive for DVR/NVR",
+            price: 4999,
+            image: "https://5.imimg.com/data5/FS/DE/SX/SELLER-21067398/wd-2-tb-hard-disk-blue-500x500.jpeg",
+            category: "Storage",
+          },
+          {
+            id: "acc-6",
+            name: "Camera Mount",
+            description: "Adjustable wall mount for CCTV cameras",
+            price: 249,
+            image: "https://images-cdn.ubuy.co.in/63416f47dd72e4286c4cefb2-compcctv-cctv-security-camera-mount.jpg",
+            category: "Mounts",
+          },
+          {
+            id: "acc-7",
+            name: "Junction Box",
+            description: "Weatherproof junction box for outdoor installations",
+            price: 349,
+            image: "https://m.media-amazon.com/images/I/31O9ZV+GqlL._AC_UF1000,1000_QL80_.jpg",
+            category: "Installation",
+          },
+          {
+            id: "acc-8",
+            name: "Video Balun",
+            description: "Pair of passive video baluns for CCTV transmission",
+            price: 199,
+            image: "https://m.media-amazon.com/images/I/718sJsmfz1L.jpg",
+            category: "Transmission",
+          },
+        ]
+
+        // Try to get accessories from products API
+        try {
+          const products = await getProducts()
+          const accessoryProducts = products.filter((p) => p.category === "Accessories")
+
+          // If we have accessories in the products API, use those
+          if (accessoryProducts.length > 0) {
+            const mappedAccessories = accessoryProducts.map((p) => ({
+              id: p.id,
+              name: p.name,
+              description: p.description,
+              price: p.price,
+              image: p.image,
+              category: p.specifications?.find((s) => s.name === "Type")?.value || "General",
+            }))
+            setAccessories([...mappedAccessories, ...defaultAccessories])
+          } else {
+            setAccessories(defaultAccessories)
+          }
+        } catch (error) {
+          console.error("Error fetching accessories from API:", error)
+          setAccessories(defaultAccessories)
+        }
+
+        // Extract unique categories
+        const uniqueCategories = Array.from(new Set(defaultAccessories.map((acc) => acc.category)))
+        setCategories(["All", ...uniqueCategories])
+
+        setLoading(false)
+      } catch (error) {
+        console.error("Error setting up accessories page:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load accessories. Please try again.",
+          variant: "destructive",
+        })
+        setLoading(false)
+      }
+    }
+
+    fetchAccessories()
+  }, [])
 
   const phoneNumber = "+919771719682"
 
@@ -88,6 +144,28 @@ export default function AccessoriesPage() {
       ...prev,
       [id]: true,
     }))
+  }
+
+  // Filter accessories by category
+  const filteredAccessories =
+    activeCategory === "All" ? accessories : accessories.filter((acc) => acc.category === activeCategory)
+
+  if (loading) {
+    return (
+      <main className="flex-1 bg-gray-50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="animate-pulse">
+            <div className="h-40 bg-gray-200 rounded-lg mb-8"></div>
+            <div className="h-20 bg-gray-200 rounded-lg mb-8"></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <div key={i} className="h-80 bg-gray-200 rounded-lg"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -119,11 +197,13 @@ export default function AccessoriesPage() {
         <div className="mb-8 bg-white p-4 rounded-lg shadow-sm">
           <h2 className="text-xl font-semibold mb-4">Categories</h2>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="bg-blue-50 border-blue-200 hover:bg-blue-100">
-              All Accessories
-            </Button>
             {categories.map((category) => (
-              <Button key={category} variant="outline" className="hover:bg-blue-50">
+              <Button
+                key={category}
+                variant={activeCategory === category ? "default" : "outline"}
+                className={activeCategory === category ? "bg-blue-700 hover:bg-blue-800" : "hover:bg-blue-50"}
+                onClick={() => setActiveCategory(category)}
+              >
                 {category}
               </Button>
             ))}
@@ -132,7 +212,7 @@ export default function AccessoriesPage() {
 
         {/* Accessories Grid with Fixed Heights */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
-          {accessories.map((accessory) => (
+          {filteredAccessories.map((accessory) => (
             <div
               key={accessory.id}
               className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow flex flex-col h-full"

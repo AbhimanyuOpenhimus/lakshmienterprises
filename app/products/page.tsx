@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ProductCard from "@/components/products/product-card"
@@ -8,11 +8,15 @@ import { getProducts } from "@/lib/product-service"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import type { Product } from "@/lib/types"
+import { toast } from "sonner"
+import { products as fallbackProducts } from "@/lib/products"
+import { useRef } from "react"
 
 export default function ProductsPage() {
   // State for products
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Get unique categories
   const [categories, setCategories] = useState<string[]>([])
@@ -48,21 +52,83 @@ export default function ProductsPage() {
   const [activeCategory, setActiveCategory] = useState("all")
   const [brandImgErrors, setBrandImgErrors] = useState<Record<string, boolean>>({})
 
-  // Load products on component mount
+  // Load products on component mount with improved error handling
   useEffect(() => {
-    const loadData = () => {
-      const products = getProducts()
-      setAllProducts(products)
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
 
-      // Extract unique categories
-      const uniqueCategories = Array.from(new Set(products.map((product) => product.category)))
-      setCategories(uniqueCategories)
+        // Try to get products with better error handling
+        let products: Product[] = []
+        try {
+          products = await getProducts()
 
-      setLoading(false)
+          // Validate that products is an array
+          if (!Array.isArray(products)) {
+            console.error("Products data is not an array:", products)
+            throw new Error("Invalid product data format")
+          }
+
+          // Check if we have any products
+          if (products.length === 0) {
+            console.warn("No products returned from API, using fallback")
+            products = fallbackProducts
+            setError("No products found. Showing default products instead.")
+          }
+        } catch (err) {
+          console.error("Error fetching products:", err)
+          // Use fallback products if API fails
+          products = fallbackProducts
+          setError("Could not load latest products instead.")
+        }
+
+        // Ensure all products have valid data to prevent rendering errors
+        const validatedProducts = products.map((product) => ({
+          ...product,
+          // Ensure image is a string and not a blob URL that might cause issues
+          image:
+            typeof product.image === "string" && !product.image.startsWith("blob:")
+              ? product.image
+              : "/placeholder.svg?height=300&width=300",
+          // Ensure other required fields have values
+          id: product.id || `product-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          name: product.name || "Product",
+          description: product.description || "No description available",
+          price: product.price || 0,
+          category: product.category || "General",
+          rating: product.rating || 4.0,
+          reviews: product.reviews || 0,
+          specifications: Array.isArray(product.specifications) ? product.specifications : [],
+          features: Array.isArray(product.features) ? product.features : [],
+        }))
+
+        setAllProducts(validatedProducts)
+
+        // Extract unique categories
+        const uniqueCategories = Array.from(new Set(validatedProducts.map((product) => product.category)))
+        setCategories(uniqueCategories)
+
+        console.log(`Loaded ${validatedProducts.length} products with ${uniqueCategories.length} categories`)
+      } catch (error) {
+        console.error("Error loading products:", error)
+        setAllProducts(fallbackProducts) // Set fallback products on error
+        setError("Failed to load products. Showing default products instead.")
+
+        // Extract unique categories from fallback
+        const uniqueCategories = Array.from(new Set(fallbackProducts.map((product) => product.category)))
+        setCategories(uniqueCategories)
+      } finally {
+        setLoading(false)
+      }
     }
 
-    // Small delay to ensure client-side code runs properly
-    setTimeout(loadData, 100)
+    loadData()
+
+    // Reduce refresh frequency to avoid potential issues with blob URLs
+    const refreshInterval = setInterval(loadData, 60000) // Changed to 60 seconds
+
+    return () => clearInterval(refreshInterval)
   }, [])
 
   // Update visible brands based on screen size
@@ -114,6 +180,41 @@ export default function ProductsPage() {
     }))
   }
 
+  // Manual refresh function
+  const refreshProducts = async () => {
+    try {
+      setLoading(true)
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime()
+      const products = await getProducts()
+
+      if (Array.isArray(products)) {
+        setAllProducts(products)
+        const uniqueCategories = Array.from(new Set(products.map((product) => product.category)))
+        setCategories(uniqueCategories)
+
+        // Force refresh of localStorage
+        if (typeof window !== "undefined") {
+          localStorage.setItem("products_timestamp", timestamp.toString())
+        }
+
+        toast({
+          title: "Products Refreshed",
+          description: `Successfully loaded ${products.length} products.`,
+        })
+      }
+    } catch (error) {
+      console.error("Error refreshing products:", error)
+      toast({
+        title: "Refresh Failed",
+        description: "Failed to refresh products. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <main className="flex-1 bg-gray-50">
@@ -151,6 +252,14 @@ export default function ProductsPage() {
             <p className="text-lg sm:text-xl text-blue-100 max-w-3xl mx-auto">
               Browse our wide range of CCTV and security products
             </p>
+            <Button
+              onClick={refreshProducts}
+              variant="outline"
+              size="sm"
+              className="mt-4 bg-white/20 text-white hover:bg-white/30"
+            >
+              Refresh Products
+            </Button>
           </div>
         </div>
 
@@ -221,6 +330,13 @@ export default function ProductsPage() {
               </TabsTrigger>
             ))}
           </TabsList>
+
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+              <strong className="font-bold">Error!</strong>
+              <span className="block sm:inline"> {error}</span>
+            </div>
+          )}
 
           {/* All Products Tab */}
           <TabsContent value="all">

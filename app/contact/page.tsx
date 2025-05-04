@@ -90,21 +90,14 @@ export default function ContactPage() {
     setIsSubmitting(true)
 
     try {
-      // Send to API
-      const response = await fetch("/api/contact", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      })
+      // Save to API and database
+      const result = await saveFormSubmission(formData)
 
-      const result = await response.json()
+      if (!result) {
+        throw new Error("Failed to save submission")
+      }
 
-      // Save to local storage for admin dashboard
-      saveFormSubmission(formData)
-
-      // Show success dialog instead of toast
+      // Show success dialog
       setShowSuccessDialog(true)
 
       // Reset the form

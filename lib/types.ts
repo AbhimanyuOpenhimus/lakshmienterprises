@@ -1,20 +1,3 @@
-export interface Product {
-  id: string
-  name: string
-  description: string
-  price: number
-  discountedPrice?: number
-  discount?: number
-  category: string
-  image: string
-  features: string[]
-  specifications: Record<string, string>
-  isNew: boolean
-  inStock: boolean
-  rating: number
-  reviews: number
-}
-
 export interface Service {
   id: string
   title: string
@@ -23,13 +6,32 @@ export interface Service {
   features: string[]
 }
 
+export interface Product {
+  id: string
+  name: string
+  description: string
+  price: number
+  discountedPrice?: number
+  category: string
+  image: string
+  rating: number
+  reviews: number
+  featured?: boolean
+  isNew?: boolean
+  discount?: number
+  inStock?: boolean
+  specifications: { name: string; value: string }[]
+  features: string[]
+}
+
 export interface FormSubmission {
   id: string
   name: string
   email: string
   phone: string
-  subject: string
+  subject?: string
   message: string
   createdAt: string
   read: boolean
+  replied?: boolean
 }

@@ -27,24 +27,131 @@ export default function ProductPage({ params }: ProductPageProps) {
 
   useEffect(() => {
     // Fetch the product
-    const fetchProduct = () => {
-      const foundProduct = getProductById(params.id)
-      if (foundProduct) {
-        setProduct(foundProduct)
+    const fetchProduct = async () => {
+      try {
+        // Special case for accessories route
+        if (params.id === "accessories") {
+          console.log("Accessories route detected, redirecting")
+          router.push("/products/accessories")
+          return
+        }
 
-        // Get related products
-        const allProducts = getProductById("") ? [] : require("@/lib/products").allProducts
-        const related = allProducts
-          .filter((p: Product) => p.category === foundProduct.category && p.id !== foundProduct.id)
-          .slice(0, 4)
-        setRelatedProducts(related)
+        // Add timestamp to prevent caching
+        const timestamp = new Date().getTime()
+        const foundProduct = await getProductById(params.id)
+
+        if (foundProduct) {
+          // Ensure all required fields have values
+          const completeProduct = {
+            ...foundProduct,
+            // Ensure image is not a blob URL
+            image:
+              typeof foundProduct.image === "string" && !foundProduct.image.startsWith("blob:")
+                ? foundProduct.image
+                : "/placeholder.svg?height=300&width=300",
+            rating: foundProduct.rating ?? 4.0,
+            reviews: foundProduct.reviews ?? 0,
+            features: foundProduct.features ?? [],
+            specifications: foundProduct.specifications ?? [],
+            inStock: foundProduct.inStock ?? true,
+          }
+
+          setProduct(completeProduct)
+          console.log("Product loaded:", completeProduct.id)
+
+          // Get related products
+          try {
+            const allProducts = await getProducts()
+            const related = allProducts
+              .filter(
+                (p: Product) =>
+                  // Filter out invalid products and the current product
+                  p && p.id && p.category === completeProduct.category && p.id !== completeProduct.id,
+              )
+              .slice(0, 4)
+            // Process related products
+            const validRelated = related.map((p) => ({
+              ...p,
+              image:
+                typeof p.image === "string" && !p.image.startsWith("blob:")
+                  ? p.image
+                  : "/placeholder.svg?height=300&width=300",
+            }))
+            setRelatedProducts(validRelated)
+            console.log(`Loaded ${validRelated.length} related products`)
+          } catch (error) {
+            console.error("Error fetching related products:", error)
+            setRelatedProducts([])
+          }
+        } else {
+          console.error("Product not found:", params.id)
+          // If product is not found, redirect to products page
+          router.push("/products")
+        }
+      } catch (error) {
+        console.error("Error fetching product:", error)
+        // If there's an error, redirect to products page
+        router.push("/products")
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
-    // Small delay to ensure client-side code runs properly
-    setTimeout(fetchProduct, 100)
-  }, [params.id])
+    fetchProduct()
+
+    // Set up a refresh interval to keep data fresh but with a longer interval
+    const refreshInterval = setInterval(fetchProduct, 60000) // Refresh every 60 seconds
+
+    return () => clearInterval(refreshInterval)
+  }, [params.id, router])
+
+  // Helper function to get products
+  async function getProducts(): Promise<Product[]> {
+    try {
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime()
+
+      // Try to fetch from API first with explicit no-cache headers
+      const response = await fetch(`/api/products?t=${timestamp}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+        cache: "no-store",
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (Array.isArray(data.products)) {
+          return data.products
+        }
+      }
+
+      // If API fails, try localStorage
+      if (typeof window !== "undefined") {
+        const storedProducts = localStorage.getItem("products")
+        if (storedProducts) {
+          try {
+            const parsedProducts = JSON.parse(storedProducts)
+            if (Array.isArray(parsedProducts)) {
+              return parsedProducts
+            }
+          } catch (error) {
+            console.error("Error parsing stored products:", error)
+          }
+        }
+      }
+
+      // Fallback to empty array
+      return []
+    } catch (error) {
+      console.error("Error fetching products:", error)
+      return []
+    }
+  }
 
   if (loading) {
     return (
@@ -76,8 +183,8 @@ export default function ProductPage({ params }: ProductPageProps) {
   }
 
   // Generate sample reviews based on the product's review count
-  const sampleReviews = Array.from({ length: Math.min(product.reviews, 5) }, (_, i) => {
-    const randomRating = Math.max(3, Math.min(5, product.rating + (Math.random() * 1.5 - 0.75)))
+  const sampleReviews = Array.from({ length: Math.min(product.reviews || 0, 5) }, (_, i) => {
+    const randomRating = Math.max(3, Math.min(5, (product.rating || 4) + (Math.random() * 1.5 - 0.75)))
     return {
       id: `review-${i}`,
       author: [
@@ -132,9 +239,9 @@ export default function ProductPage({ params }: ProductPageProps) {
 
             {/* Rating and Reviews Summary */}
             <div className="flex items-center mb-4">
-              <StarRating rating={product.rating} size="md" />
+              <StarRating rating={product.rating || 4} size="md" />
               <span className="ml-2 text-gray-600">
-                {product.rating.toFixed(1)} ({product.reviews} reviews)
+                {(product.rating || 4).toFixed(1)} ({product.reviews || 0} reviews)
               </span>
             </div>
 
@@ -172,7 +279,7 @@ export default function ProductPage({ params }: ProductPageProps) {
             <div className="bg-blue-50 p-4 rounded-lg mb-4">
               <h3 className="font-semibold mb-2">Key Features:</h3>
               <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {product.features.slice(0, 4).map((feature, index) => (
+                {(product.features || []).slice(0, 4).map((feature, index) => (
                   <li key={index} className="flex items-start">
                     <Check className="h-4 w-4 mr-2 text-blue-600 mt-1 flex-shrink-0" />
                     <span className="text-sm">{feature}</span>
@@ -187,12 +294,12 @@ export default function ProductPage({ params }: ProductPageProps) {
           <TabsList className="bg-white">
             <TabsTrigger value="features">Features</TabsTrigger>
             <TabsTrigger value="specifications">Specifications</TabsTrigger>
-            <TabsTrigger value="reviews">Reviews ({product.reviews})</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews ({product.reviews || 0})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="features" className="p-6 bg-white rounded-lg shadow-sm mt-4">
             <ul className="space-y-3">
-              {product.features.map((feature, index) => (
+              {(product.features || []).map((feature, index) => (
                 <li key={index} className="flex items-start">
                   <Check className="h-5 w-5 mr-3 text-green-600 mt-0.5" />
                   <span>{feature}</span>
@@ -203,12 +310,13 @@ export default function ProductPage({ params }: ProductPageProps) {
 
           <TabsContent value="specifications" className="p-6 bg-white rounded-lg shadow-sm mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.entries(product.specifications).map(([key, value]) => (
-                <div key={key} className="border-b border-gray-200 pb-2">
-                  <span className="font-medium text-gray-700">{key}: </span>
-                  <span className="text-gray-600">{value}</span>
-                </div>
-              ))}
+              {Array.isArray(product.specifications) &&
+                product.specifications.map((spec, index) => (
+                  <div key={index} className="border-b border-gray-200 pb-2">
+                    <span className="font-medium text-gray-700">{spec.name}: </span>
+                    <span className="text-gray-600">{spec.value}</span>
+                  </div>
+                ))}
             </div>
           </TabsContent>
 
@@ -219,9 +327,9 @@ export default function ProductPage({ params }: ProductPageProps) {
               {/* Rating Summary */}
               <div className="flex flex-col md:flex-row md:items-center gap-6 mb-6 p-4 bg-gray-50 rounded-lg">
                 <div className="text-center">
-                  <div className="text-5xl font-bold text-blue-700">{product.rating.toFixed(1)}</div>
-                  <StarRating rating={product.rating} size="lg" className="justify-center my-2" />
-                  <div className="text-sm text-gray-500">{product.reviews} reviews</div>
+                  <div className="text-5xl font-bold text-blue-700">{(product.rating || 4).toFixed(1)}</div>
+                  <StarRating rating={product.rating || 4} size="lg" className="justify-center my-2" />
+                  <div className="text-sm text-gray-500">{product.reviews || 0} reviews</div>
                 </div>
 
                 <div className="flex-grow">
@@ -229,7 +337,7 @@ export default function ProductPage({ params }: ProductPageProps) {
                     {[5, 4, 3, 2, 1].map((star) => {
                       // Calculate percentage of reviews for each star rating
                       const percentage = Math.round(
-                        (star <= Math.round(product.rating) ? (6 - star) * 20 : 5) * (product.rating / 5),
+                        (star <= Math.round(product.rating || 4) ? (6 - star) * 20 : 5) * ((product.rating || 4) / 5),
                       )
                       return (
                         <div key={star} className="flex items-center">
@@ -302,6 +410,9 @@ export default function ProductPage({ params }: ProductPageProps) {
                         src={relatedProduct.image || "/placeholder.svg"}
                         alt={relatedProduct.name}
                         className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          ;(e.target as HTMLImageElement).src = "/placeholder.svg"
+                        }}
                       />
                     </div>
                   </Link>
@@ -312,8 +423,8 @@ export default function ProductPage({ params }: ProductPageProps) {
                       </h3>
                     </Link>
                     <div className="flex items-center mb-2">
-                      <StarRating rating={relatedProduct.rating} size="sm" />
-                      <span className="ml-1 text-sm text-gray-500">({relatedProduct.reviews})</span>
+                      <StarRating rating={relatedProduct.rating || 4} size="sm" />
+                      <span className="ml-1 text-sm text-gray-500">({relatedProduct.reviews || 0})</span>
                     </div>
                     <div className="font-bold mb-3">₹{relatedProduct.price}</div>
                     <Button asChild className="w-full bg-blue-700 hover:bg-blue-800">

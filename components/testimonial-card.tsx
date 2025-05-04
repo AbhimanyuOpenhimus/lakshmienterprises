@@ -1,32 +1,34 @@
-import { Quote } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Card, CardContent } from "@/components/ui/card"
+import { StarRating } from "@/components/ui/star-rating"
 
 interface TestimonialCardProps {
   name: string
   role: string
   image: string
   content: string
+  rating?: number
 }
 
-export default function TestimonialCard({ name, role, image, content }: TestimonialCardProps) {
+export function TestimonialCard({ name, role, image, content, rating }: TestimonialCardProps) {
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-      <div className="flex items-start mb-4">
-        <div className="relative mr-4">
-          <Avatar className="h-12 w-12">
-            <AvatarImage src={image} alt={name} />
-            <AvatarFallback>{name.charAt(0)}</AvatarFallback>
-          </Avatar>
-          <div className="absolute -bottom-1 -right-1 bg-yellow-500 rounded-full p-1">
-            <Quote className="h-3 w-3 text-white" />
+    <Card className="h-full">
+      <CardContent className="p-6">
+        <div className="flex items-start mb-4">
+          <div className="mr-4">
+            <div className="w-12 h-12 rounded-full overflow-hidden">
+              <img src={image || "/placeholder.svg"} alt={name} className="w-full h-full object-cover" />
+            </div>
+          </div>
+          <div>
+            <h4 className="font-semibold text-lg">{name}</h4>
+            <p className="text-sm text-gray-500">{role}</p>
+            {rating && <StarRating rating={rating} size="sm" className="mt-1" />}
           </div>
         </div>
-        <div>
-          <h4 className="font-semibold">{name}</h4>
-          <p className="text-sm text-gray-500">{role}</p>
-        </div>
-      </div>
-      <p className="text-gray-700 italic">{content}</p>
-    </div>
+        <p className="text-gray-700 italic">&ldquo;{content}&rdquo;</p>
+      </CardContent>
+    </Card>
   )
 }
+
+export default TestimonialCard

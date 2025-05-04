@@ -5,6 +5,7 @@ import "./globals.css"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { ThemeProvider } from "@/components/theme-provider"
+import ErrorBoundary from "@/components/error-boundary"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -32,7 +33,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <div className="flex min-h-screen flex-col">
             <Header />
-            {children}
+            <ErrorBoundary>{children}</ErrorBoundary>
             <Footer />
           </div>
         </ThemeProvider>
@@ -40,6 +41,3 @@ export default function RootLayout({
     </html>
   )
 }
-
-
-import './globals.css'

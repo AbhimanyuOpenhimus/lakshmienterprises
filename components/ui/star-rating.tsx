@@ -1,40 +1,40 @@
-import { Star, StarHalf } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Star } from "lucide-react"
 
 interface StarRatingProps {
   rating: number
-  maxRating?: number
   size?: "sm" | "md" | "lg"
   className?: string
 }
 
-export function StarRating({ rating, maxRating = 5, size = "md", className }: StarRatingProps) {
-  // Calculate full stars, half stars, and empty stars
-  const fullStars = Math.floor(rating)
-  const hasHalfStar = rating % 1 >= 0.5
-  const emptyStars = maxRating - fullStars - (hasHalfStar ? 1 : 0)
+export function StarRating({ rating, size = "md", className = "" }: StarRatingProps) {
+  // Ensure rating is between 0 and 5
+  const safeRating = Math.max(0, Math.min(5, rating || 0))
 
-  // Determine star size based on the size prop
-  const starSize = {
-    sm: "h-3 w-3",
-    md: "h-4 w-4",
-    lg: "h-5 w-5",
-  }[size]
+  // Size classes
+  const sizeClasses = {
+    sm: "w-3 h-3",
+    md: "w-4 h-4",
+    lg: "w-5 h-5",
+  }
+
+  const starSize = sizeClasses[size]
 
   return (
-    <div className={cn("flex items-center", className)}>
-      {/* Full stars */}
-      {Array.from({ length: fullStars }).map((_, i) => (
-        <Star key={`full-${i}`} className={cn(starSize, "text-yellow-400 fill-yellow-400")} />
-      ))}
-
-      {/* Half star */}
-      {hasHalfStar && <StarHalf className={cn(starSize, "text-yellow-400 fill-yellow-400")} />}
-
-      {/* Empty stars */}
-      {Array.from({ length: emptyStars }).map((_, i) => (
-        <Star key={`empty-${i}`} className={cn(starSize, "text-gray-300")} />
+    <div className={`flex items-center ${className}`}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          className={`${starSize} ${
+            star <= safeRating
+              ? "text-yellow-500 fill-yellow-500"
+              : star - 0.5 <= safeRating
+                ? "text-yellow-500 fill-yellow-500"
+                : "text-gray-300"
+          }`}
+        />
       ))}
     </div>
   )
 }
+
+export default StarRating
